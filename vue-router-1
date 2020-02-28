@@ -1,0 +1,68 @@
+
+let Vue;
+
+export default class VueRouter{
+    constructor(options){
+       this.$options=options
+        this.routerMap={}
+        this.app=new Vue({
+            data() {
+                return {
+                    current: '/' //页面响应原理
+                }
+            },
+        })
+    }
+    init(){
+        console.log('routeroptions',this.$options)
+        this.bindEvents();
+        this.createRouteMap()
+        this.initComponent()
+    }
+    bindEvents(){
+        window.addEventListener('hashchange',this.onHashChange.bind(this))
+        window.addEventListener('load',this.onHashChange.bind(this))
+    }
+    onHashChange(){
+        this.app.current=window.location.hash.slice(1)||'/'
+    }
+    createRouteMap(){
+        this.$options.routes.forEach(item=>{
+            this.routerMap[item.path]=item.component;
+        })
+    }
+    initComponent(){
+        Vue.component('router-link',{
+            props:{
+                to:{
+                    type:String,
+                    required:true
+                }
+                
+            },
+            render(h) {
+              return h('a',{attrs:{href:this.to}},[this.$slots.default])  
+            },
+        })
+
+        Vue.component('router-view',{
+            render:h=>{
+                const component = this.routerMap[this.app.current]
+                return h(component)
+            }
+        })
+    }
+}
+
+VueRouter.install=function (_Vue){
+Vue=_Vue
+Vue.mixin({
+    beforeCreate() {
+        if(this.$options.router){
+            console.log('vueoptions',this.$options)
+            Vue.prototype.$router=this.$options.router
+            this.$options.router.init()
+        }
+    },
+})
+}
