@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <div id="app"></div>
+   <script>
+       class Dep{
+           constructor(){
+               this.subs=[]
+           }
+           notify(){
+               const subs=this.subs.slice()
+               for(let i=0,len=this.subs.length;i<len;i++){
+                   this.subs[i].update()
+               }
+           }
+           addSub(sub){
+               if(this.subs.indexOf(sub)===-1){
+                   this.subs.push(sub)
+               }
+           }
+           addDepend(){
+            //    在当前watch中增加这个属性
+               Dep.targets[Dep.targets.length-1].addDep(this)
+           }
+
+       }
+       Dep.targets=[]
+       function pushTarget(instance){
+            Dep.targets.push(instance)
+       }
+       function popTarget(){
+           return Dep.targets.pop()
+       }
+       class Watcher{
+           constructor(getter,cb){
+                this.cb=cb
+                //render获取页面中使用的属性render方法
+                this.getter=getter
+                // 记录当前watch的，存到depsub中，使用完互相存完然后删掉target中的watch
+                this.value=this.get()
+           }
+           get(){
+               pushTarget(this)
+               let value =this.getter()
+               popTarget()
+               return value
+           }
+           addDep(dep){
+            //    在这个dep中增加一个当前watch
+               dep.addSub(this)
+           }
+           update(){
+               let newVal = this.get()
+               this.value = newVal
+               console.log(this.value,'vl')
+           }
+       }
+       function proxy(target,data,key){
+           Object.defineProperty(target,key,{
+               get(){
+                return data[key]
+               },
+               set(newVal){
+                   data[key]=newVal
+               }
+
+           })
+       }
+       class Observer{
+           constructor(obj){
+               this.walk(obj)
+           }
+        walk(obj){
+           Object.keys(obj).forEach(key=>{
+               console.log(Object.prototype.toString(obj[key]))
+               if(typeof obj[key]=='object'){
+                   this.walk(obj[key])
+               }
+               defineReactive(obj,key,obj[key])
+           })
+           return obj
+       }
+    }
+        
+       const defineReactive=(obj,key,value)=>{
+        //每个属性都对应一个dep
+        let dep=new Dep()
+        Object.defineProperty(obj,key,{
+               get(){
+               只监听被get的数据，其他的不监听
+                    if(Dep.targets.length>0){
+                        //给当前watch第dep，newwatch的时候会执行
+                        dep.addDepend()
+                        console.log(dep,key)
+                    }
+                return value
+               },
+               set(newVal){
+                  value=newVal
+                  
+                  //告诉每一个watch，这些属性更新了
+                  dep.notify()
+               }
+
+           })
+       }
+    class Vue{
+        constructor(options){
+            this.$el=document.querySelector(options.el) ;
+            this._data=options.data&&options.data();
+            new Observer(this._data)
+            this.render=options.render
+            for(let key in this._data){
+                proxy(this,this._data,key)
+            }
+            new Watcher(()=>{
+                this._update()
+            },()=>{
+
+            })
+            
+        }
+        
+        _createElement(tagName,data,children){
+            const tag=document.createElement(tagName)
+            const {attrs={}}=data;
+            for(let attrName in attrs){
+                tag.setAttribute(attrName,attrs[attrName])
+            }
+
+            if(Object.prototype.toString.call(children)!=='[object Array]'){
+             let childrenNode  = document.createTextNode(children)
+                tag.appendChild(childrenNode)
+            }else{
+                children.forEach(child=>{
+                    tag.appendChild(child)
+                })
+            }
+            return tag
+        }
+        _update(){
+            const root =this.render(this._createElement)
+            console.log('====================================');
+            console.log(root);
+            console.log('====================================');
+            api.replaceChild(this.$el,root)
+
+            this.$el=root
+        }
+    }
+
+    const api={
+        replaceChild(oldElement,element){
+            return oldElement.parentElement.replaceChild(element,oldElement)
+        }
+    }
+  window.app=  new Vue({
+        el:'#app',
+        data(){
+            return {
+                price:100,
+                yh:89,
+                infors:{
+                    title:'猪肉价格'
+                }
+            }
+        },
+        render(h) {
+            return h('div',{
+                attrs:{
+                    title:this.infors.title,
+                    name:this.infors.title
+                }
+            },[
+                h('span',{},this.price)
+            ])
+        },
+    })
+    </script>
+</body>
+</html>
